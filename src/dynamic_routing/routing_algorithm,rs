@@ -1,0 +1,50 @@
+use std::sync::{Arc, Mutex};
+
+#[derive(Debug, Clone)]
+pub enum RoutingAlgorithm {
+    RoundRobin,
+    LeastLoad,
+}
+
+pub struct RoutingConfig {
+    pub algorithm: Arc<Mutex<RoutingAlgorithm>>, 
+}
+
+impl RoutingConfig {
+    pub fn new(default_algorithm: RoutingAlgorithm) -> Self {
+        Self {
+            algorithm: Arc::new(Mutex::new(default_algorithm)),
+        }
+    }
+
+    
+    pub fn configure_routing_algorithm(
+        &self,
+        new_algorithm: RoutingAlgorithm,
+    ) -> Result<(), &'static str> {
+        let mut algorithm = self.algorithm.lock().map_err(|_| "Failed to acquire lock")?;
+        *algorithm = new_algorithm;
+        Ok(())
+    }
+
+
+    pub fn get_current_algorithm(&self) -> RoutingAlgorithm {
+        let algorithm = self.algorithm.lock().unwrap();
+        algorithm.clone()
+    }
+
+    
+    pub fn select_vm(&self, available_vms: &[VMHandle]) -> Option<VMHandle> {
+        let algorithm = self.get_current_algorithm();
+        match algorithm {
+            RoutingAlgorithm::RoundRobin => {
+             
+                available_vms.get(0).cloned()
+            }
+            RoutingAlgorithm::LeastLoad => {
+       
+                available_vms.iter().min_by_key(|vm| vm.load).cloned()
+            }
+        }
+    }
+}
